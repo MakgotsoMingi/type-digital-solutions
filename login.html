@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace Access | TYPE Digital Solutions</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+    <main class="auth-shell">
+        <section class="auth-card">
+            <a class="brand" href="index.html">TDS<span>.</span></a>
+            <span class="eyebrow">TYPE DIGITAL SOLUTIONS PORTAL</span>
+            <h1 id="authHeading">Sign in to workspace</h1>
+            <p class="muted" id="authSubtext">Sign in with your business or client account credentials to open your dashboard.</p>
+
+            <div class="auth-tabs">
+                <button type="button" class="btn btn-primary" data-auth-tab="signin" id="tabSignInBtn">Sign in</button>
+                <button type="button" class="btn" data-auth-tab="register" id="tabRegisterBtn">Create account</button>
+                <button type="button" class="btn" data-auth-tab="forgot" id="tabForgotBtn">Forgot account</button>
+            </div>
+
+            <form id="tempLoginForm" class="client-form">
+                <label for="loginRoleSelect">Account role</label>
+                <select id="loginRoleSelect" aria-label="Workspace role">
+                    <option value="admin">Business / Admin</option>
+                    <option value="client">Client</option>
+                </select>
+
+                <label for="loginCompanyInput">Company or full name</label>
+                <input type="text" id="loginCompanyInput" placeholder="e.g. Northstar Consulting">
+
+                <label for="loginEmailInput">Email address</label>
+                <input type="email" id="loginEmailInput" placeholder="name@company.co.za" required>
+
+                <label for="loginPasswordInput">Password</label>
+                <input type="password" id="loginPasswordInput" placeholder="Enter your password" required>
+
+                <button type="submit" class="btn btn-primary">Sign in to workspace</button>
+            </form>
+
+            <form id="createAccountForm" class="client-form" hidden>
+                <label for="regNameInput">Full name or company</label>
+                <input type="text" id="regNameInput" placeholder="e.g. Glow Studio" required>
+
+                <label for="regEmailInput">Email address</label>
+                <input type="email" id="regEmailInput" placeholder="team@company.co.za" required>
+
+                <label for="regRoleSelect">Account type</label>
+                <select id="regRoleSelect" aria-label="Account type">
+                    <option value="client">Client account</option>
+                    <option value="admin">Business / Admin account</option>
+                </select>
+
+                <label for="regPasswordInput">Create password (min. 6 characters)</label>
+                <input type="password" id="regPasswordInput" placeholder="Create password" minlength="6" required>
+
+                <button type="submit" class="btn btn-primary">Create account</button>
+            </form>
+
+            <form id="forgotAccountForm" class="client-form" hidden>
+                <label for="forgotEmailInput">Account email address</label>
+                <input type="email" id="forgotEmailInput" placeholder="Enter your registered email" required>
+
+                <button type="submit" class="btn btn-primary">Send recovery link</button>
+            </form>
+
+            <p id="authFeedback" aria-live="polite"></p>
+
+            <p class="back-link"><a href="index.html">← Back to main website</a></p>
+        </section>
+    </main>
+
+    <script src="auth.js"></script>
+</body>
+
+</html>
