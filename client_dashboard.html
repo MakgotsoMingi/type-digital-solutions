@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="portal.css">
 </head>
 
-<body>
+<body data-require-role="client">
     <div class="portal-shell">
         <aside class="sidebar">
             <a class="brand" href="index.html">TDS<span>.</span></a>
@@ -20,12 +20,14 @@
                 <a href="#milestones"><span class="nav-icon">◷</span>Milestones</a>
                 <a href="#due-payments"><span class="nav-icon">R</span>Due payments</a>
                 <a href="#my-documents"><span class="nav-icon">▤</span>Documents & PDF</a>
+                <a href="#contact-details"><span class="nav-icon">☎</span>Contact details</a>
+                <a href="#account-security"><span class="nav-icon">⚙</span>Password</a>
                 <a href="#new-request"><span class="nav-icon">✉</span>Request new work</a>
             </nav>
             <div class="side-label">ACCOUNT</div>
             <nav class="side-nav">
                 <a href="index.html"><span class="nav-icon">↗</span>Visit website</a>
-                <a href="login.html"><span class="nav-icon">⇥</span>Sign out</a>
+                <a href="login.html" data-signout><span class="nav-icon">⇥</span>Sign out</a>
             </nav>
             <div class="sidebar-bottom">TYPE Digital Solutions<br>Your client workspace · Live mode</div>
         </aside>
@@ -34,23 +36,24 @@
             <header class="topbar">
                 <div class="topbar-title"><span class="eyebrow">CLIENT WORKSPACE</span></div>
                 <div class="topbar-right">
-                    <span class="user-meta"><strong>Northstar Consulting</strong>Client account</span>
-                    <span class="avatar">NC</span>
+                    <span class="user-meta"><strong data-person-name>Northstar Consulting</strong>Client account</span>
+                    <span class="avatar" data-user-initials>NC</span>
                 </div>
             </header>
 
             <section class="content">
                 <div class="welcome-card">
                     <span class="eyebrow" style="color:#a3bcb6">YOUR PROJECT SPACE</span>
-                    <h2>Welcome back, Northstar Consulting</h2>
+                    <h2>Welcome back, <span data-person-name>Northstar Consulting</span></h2>
                     <p>Track accepted work, completed contracts, upcoming milestones, due balances, and downloadable PDF invoices in one place.</p>
                 </div>
 
+                <div id="clientWelcomeBanner" class="panel" style="display:none;border-color:var(--sage)"></div>
                 <div id="clientAlertBanner" class="panel" style="display:none;border-color:var(--gold)"></div>
 
                 <div class="page-heading">
                     <div>
-                        <span class="eyebrow" id="clientDateLabel">TUESDAY, 24 NOVEMBER 2026</span>
+                        <span class="eyebrow" id="clientDateLabel">FRIDAY, 27 NOVEMBER 2026</span>
                         <h1>Your workspace</h1>
                         <p>Live updates from TYPE Digital Solutions.</p>
                     </div>
@@ -116,6 +119,31 @@
                     <div class="activity-list" id="clientCompletedList" style="margin-top:14px"></div>
                 </section>
 
+                <section class="panel" id="contact-details" style="margin-top:20px">
+                    <div class="panel-heading">
+                        <h2>Update contact details</h2>
+                    </div>
+                    <form id="clientContactDetailsForm" class="client-form">
+                        <input type="text" id="clientFirstNameInput" placeholder="Name" required>
+                        <input type="text" id="clientSurnameInput" placeholder="Surname" required>
+                        <input type="email" id="clientEmailEditInput" placeholder="Email address" required>
+                        <input type="tel" id="clientPhoneEditInput" placeholder="Contact details (phone / WhatsApp)" required>
+                        <button type="submit" class="btn btn-primary" style="grid-column: 1 / -1">Save contact details</button>
+                    </form>
+                    <p class="muted" id="clientContactFeedback" aria-live="polite" style="font-size:12px;margin-top:8px"></p>
+                </section>
+
+                <section class="panel" id="account-security" style="margin-top:20px">
+                    <div class="panel-heading">
+                        <h2>Change login password</h2>
+                    </div>
+                    <form id="clientChangePasswordForm" class="client-form">
+                        <input type="password" id="newClientPasswordInput" placeholder="Enter new password (min. 6 characters)" minlength="6" required>
+                        <button type="submit" class="btn btn-primary">Update password</button>
+                    </form>
+                    <p class="muted" id="clientPasswordFeedback" aria-live="polite" style="font-size:12px;margin-top:8px"></p>
+                </section>
+
                 <section class="panel" id="new-request" style="margin-top:20px">
                     <div class="panel-heading">
                         <h2>Request new work or changes</h2>
@@ -141,8 +169,11 @@
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="config.js"></script>
     <script src="portal.js"></script>
     <script src="client_dashboard.js"></script>
+    <script src="auth.js"></script>
 </body>
 
 </html>

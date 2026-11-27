@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Client Account | TYPE Digital Solutions</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+    <main class="auth-shell">
+        <section class="auth-card">
+            <a class="brand" href="index.html">TDS<span>.</span></a>
+            <span class="eyebrow">TYPE DIGITAL SOLUTIONS PORTAL</span>
+            <h1 id="authHeading">Create client account</h1>
+            <p class="muted" id="authSubtext">Client registration only — enter your details to request access.</p>
+
+            <div class="auth-tabs">
+                <a class="btn" href="login.html" id="tabSignInLink">Sign in</a>
+                <a class="btn btn-primary" href="createAcc.html" id="tabCreateAccLink">Create account</a>
+                <a class="btn" href="ForgotPassword.html" id="tabForgotLink">Forgot account</a>
+            </div>
+
+            <form id="createAccountForm" class="client-form" aria-label="Create client account">
+                <label for="regFirstNameInput">Name</label>
+                <input type="text" id="regFirstNameInput" placeholder="e.g. Thabo" required>
+
+                <label for="regSurnameInput">Surname</label>
+                <input type="text" id="regSurnameInput" placeholder="e.g. Mokoena" required>
+
+                <label for="regEmailInput">Email address</label>
+                <input type="email" id="regEmailInput" placeholder="thabo@company.co.za" required>
+
+                <label for="regContactInput">Contact details (phone / WhatsApp)</label>
+                <input type="tel" id="regContactInput" placeholder="e.g. +27 82 555 0194" required>
+
+                <label for="regCompanyInput">Business / company name (optional)</label>
+                <input type="text" id="regCompanyInput" placeholder="e.g. Mokoena Studio">
+
+                <button type="submit" class="btn btn-primary" id="submitClientRequestBtn">Create account</button>
+            </form>
+
+            <form id="setPasswordForm" class="client-form" hidden aria-label="Create password">
+                <label for="setupEmailDisplay">Approved client email</label>
+                <input type="email" id="setupEmailDisplay" readonly>
+
+                <label for="setupPasswordInput">Create password (min. 6 characters)</label>
+                <input type="password" id="setupPasswordInput" placeholder="Create password" minlength="6" required>
+
+                <label for="setupConfirmPasswordInput">Confirm password</label>
+                <input type="password" id="setupConfirmPasswordInput" placeholder="Confirm password" minlength="6" required>
+
+                <button type="submit" class="btn btn-primary" id="saveSetupPasswordBtn">Save password &amp; sign in</button>
+            </form>
+
+            <p id="authFeedback" aria-live="polite"></p>
+
+            <p class="back-link"><a href="login.html">← Back to sign in</a></p>
+        </section>
+    </main>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+</body>
+
+</html>

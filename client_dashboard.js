@@ -1,11 +1,20 @@
 (() => {
   const TEMP_SESSION_KEY = 'tds_temp_session_v1';
+  const TEMP_ACCOUNTS_KEY = 'tds_temp_accounts_v1';
   const SHARED_BRIDGE_KEY = 'tds_shared_work_requests_v1';
   const REQUEST_STATUS_KEY = 'tds_client_request_status_v1';
   const ADMIN_STORAGE_KEY = 'tds_admin_dashboard_state_v6';
   const CLIENT_FEED_KEY = 'tds_client_feed_v1';
-  const CLIENT_SEED_KEY = 'tds_client_contracts_seeded_v1';
-  const DIRECTOR_EMAIL = 'director@typedigitalsolutions.co.za';
+  const CLIENT_SEED_KEY = 'tds_client_contracts_seeded_v2';
+  const CLIENT_APPROVALS_KEY = 'tds_client_approvals_v1';
+  const DISMISSED_CLIENTS_KEY = 'tds_dismissed_clients_v1';
+  const DIRECTOR_EMAIL = window.TDS_CONFIG?.directorEmail || 'director@typedigitalsolutions.co.za';
+
+  const EMAILJS_CFG = {
+    publicKey: window.TDS_CONFIG?.emailjs?.publicKey || 'A2KNyw8KMU-wuzclr',
+    serviceId: window.TDS_CONFIG?.emailjs?.serviceId || 'service_xv2hpgf',
+    templateId: window.TDS_CONFIG?.emailjs?.templateId || 'template_cd3utob'
+  };
 
   const CLIENT_DIRECTORY = {
     'hello@northstar.example': {
@@ -22,23 +31,10 @@
       company: 'Glow Studio',
       email: 'hello@glowstudio.example',
       initials: 'GS'
-    },
-    'hello@neoarchitects.example': {
-      company: 'Neo Architects',
-      email: 'hello@neoarchitects.example',
-      initials: 'NA'
-    },
-    'partner5@tdsclient.example': {
-      company: 'Client Partner 5',
-      email: 'partner5@tdsclient.example',
-      initials: 'P5'
-    },
-    'partner6@tdsclient.example': {
-      company: 'Client Partner 6',
-      email: 'partner6@tdsclient.example',
-      initials: 'P6'
     }
   };
+
+  const DEMO_CLIENT_EMAILS = new Set(Object.keys(CLIENT_DIRECTORY));
 
   const DEFAULT_CLIENT_CONTRACTS = [
     {
@@ -75,42 +71,6 @@
       milestones: [
         { title: 'Visual Design & Copy', dueDate: '10 Nov 2026', completed: true },
         { title: 'Live Launch & SEO', dueDate: '20 Nov 2026', completed: true }
-      ]
-    },
-    {
-      id: '22222222-2222-4222-8222-222222222204',
-      name: 'Neo Architects',
-      email: 'hello@neoarchitects.example',
-      project: 'Custom Portfolio & Client Intake',
-      fee: 14000,
-      payment: 'Unpaid',
-      milestones: [
-        { title: 'Interactive Case Study Grid', dueDate: '29 Nov 2026', completed: false },
-        { title: 'Client Brief Uploader', dueDate: '05 Dec 2026', completed: false }
-      ]
-    },
-    {
-      id: '22222222-2222-4222-8222-222222222205',
-      name: 'Client Partner 5',
-      email: 'partner5@tdsclient.example',
-      project: 'Agency Landing Page & Lead Form',
-      fee: 9500,
-      payment: 'Deposit Paid',
-      milestones: [
-        { title: 'Responsive Hero & Services', dueDate: '19 Nov 2026', completed: true },
-        { title: 'POPIA Contact Integration', dueDate: '27 Nov 2026', completed: false }
-      ]
-    },
-    {
-      id: '22222222-2222-4222-8222-222222222206',
-      name: 'Client Partner 6',
-      email: 'partner6@tdsclient.example',
-      project: 'Support Portal & Intake Setup',
-      fee: 7500,
-      payment: 'Paid',
-      milestones: [
-        { title: 'Portal Setup & Branding', dueDate: '14 Nov 2026', completed: true },
-        { title: 'Client Handover', dueDate: '21 Nov 2026', completed: true }
       ]
     }
   ];
@@ -167,11 +127,7 @@
     } catch {}
 
     window.location.replace('login.html');
-    return {
-      company: '',
-      email: '',
-      initials: ''
-    };
+    return { company: '', email: '', initials: '' };
   }
 
   ensureSeededClientContracts();
@@ -214,6 +170,247 @@
   function sanitizeAmount(val) {
     const n = Number(val);
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
+  }
+
+  function checkDismissedOrRemovedSession() {
+    const activeEmail = CLIENT_PROFILE.email.trim().toLowerCase();
+    const activeCompany = CLIENT_PROFILE.company.trim().toLowerCase();
+
+    try {
+      const dismissedMap = JSON.parse(localStorage.getItem(DISMISSED_CLIENTS_KEY) || '{}');
+      const wasDismissed = Object.values(dismissedMap).some((entry) => {
+        if (!entry || entry.dismissed === false) return false;
+        const eMail = String(entry.email || '').trim().toLowerCase();
+        const eComp = String(entry.company || '').trim().toLowerCase();
+        return (activeEmail && eMail === activeEmail) || (activeCompany && eComp === activeCompany);
+      });
+      if (wasDismissed) {
+        sessionStorage.removeItem(TEMP_SESSION_KEY);
+        window.location.replace('login.html?status=dismissed');
+        return true;
+      }
+    } catch {}
+
+    try {
+      const rawSession = sessionStorage.getItem(TEMP_SESSION_KEY);
+      if (rawSession) {
+        const sess = JSON.parse(rawSession);
+        if (sess?.unapprovedRemoved) {
+          sessionStorage.removeItem(TEMP_SESSION_KEY);
+          window.location.replace('login.html?status=removed');
+          return true;
+        }
+      }
+    } catch {}
+
+    return false;
+  }
+
+  function isClientApproved() {
+    const emailKey = CLIENT_PROFILE.email.trim().toLowerCase();
+    if (DEMO_CLIENT_EMAILS.has(emailKey)) return true;
+    try {
+      const approvals = JSON.parse(localStorage.getItem(CLIENT_APPROVALS_KEY) || '{}');
+      return Boolean(approvals[emailKey]?.approved);
+    } catch {
+      return false;
+    }
+  }
+
+  function ensurePendingEntryInStorage() {
+    if (isClientApproved()) return;
+    const emailKey = CLIENT_PROFILE.email.trim().toLowerCase();
+    if (!emailKey) return;
+    try {
+      const approvals = JSON.parse(localStorage.getItem(CLIENT_APPROVALS_KEY) || '{}');
+      if (!approvals[emailKey]) {
+        approvals[emailKey] = {
+          approved: false,
+          passwordSetupComplete: false,
+          company: CLIENT_PROFILE.company,
+          email: CLIENT_PROFILE.email,
+          requestedAt: new Date().toISOString()
+        };
+        localStorage.setItem(CLIENT_APPROVALS_KEY, JSON.stringify(approvals));
+      }
+    } catch {}
+  }
+
+  function updateClientPassword(newPassword) {
+    const emailKey = CLIENT_PROFILE.email.trim().toLowerCase();
+    if (!emailKey || newPassword.length < 6) return false;
+    try {
+      const accounts = JSON.parse(localStorage.getItem(TEMP_ACCOUNTS_KEY) || '[]');
+      if (Array.isArray(accounts)) {
+        const updated = accounts.map((acc) =>
+          String(acc.email || '').trim().toLowerCase() === emailKey
+            ? { ...acc, password: newPassword, passwordSetupComplete: true }
+            : acc
+        );
+        localStorage.setItem(TEMP_ACCOUNTS_KEY, JSON.stringify(updated));
+      }
+    } catch {}
+
+    try {
+      const approvals = JSON.parse(localStorage.getItem(CLIENT_APPROVALS_KEY) || '{}');
+      if (approvals[emailKey]) {
+        approvals[emailKey].password = newPassword;
+        approvals[emailKey].passwordSetupComplete = true;
+        localStorage.setItem(CLIENT_APPROVALS_KEY, JSON.stringify(approvals));
+      }
+    } catch {}
+
+    return true;
+  }
+
+  function readStoredClientContact() {
+    const emailKey = CLIENT_PROFILE.email.trim().toLowerCase();
+    try {
+      const approvals = JSON.parse(localStorage.getItem(CLIENT_APPROVALS_KEY) || '{}');
+      const fromApproval = approvals[emailKey];
+      const accounts = JSON.parse(localStorage.getItem(TEMP_ACCOUNTS_KEY) || '[]');
+      const fromAccount = Array.isArray(accounts)
+        ? accounts.find((a) => String(a?.email || '').trim().toLowerCase() === emailKey)
+        : null;
+      const sessRaw = sessionStorage.getItem(TEMP_SESSION_KEY);
+      const sess = sessRaw ? JSON.parse(sessRaw) : {};
+
+      const merged = { ...(fromAccount || {}), ...(fromApproval || {}) };
+      const parts = String(merged.name || CLIENT_PROFILE.company || '').trim().split(/\s+/);
+      return {
+        firstName: merged.firstName || sess.firstName || parts[0] || '',
+        surname: merged.surname || sess.surname || parts.slice(1).join(' ') || '',
+        email: merged.email || CLIENT_PROFILE.email,
+        contact: merged.contact || sess.contact || '',
+        company: merged.company || CLIENT_PROFILE.company
+      };
+    } catch {
+      return {
+        firstName: '',
+        surname: '',
+        email: CLIENT_PROFILE.email,
+        contact: '',
+        company: CLIENT_PROFILE.company
+      };
+    }
+  }
+
+  function populateContactDetailsForm() {
+    const firstInput = document.getElementById('clientFirstNameInput');
+    const surnameInput = document.getElementById('clientSurnameInput');
+    const emailInput = document.getElementById('clientEmailEditInput');
+    const phoneInput = document.getElementById('clientPhoneEditInput');
+    if (!firstInput && !surnameInput && !emailInput && !phoneInput) return;
+
+    if (document.activeElement && [firstInput, surnameInput, emailInput, phoneInput].includes(document.activeElement)) {
+      return;
+    }
+
+    const info = readStoredClientContact();
+    if (firstInput) firstInput.value = info.firstName;
+    if (surnameInput) surnameInput.value = info.surname;
+    if (emailInput) emailInput.value = info.email;
+    if (phoneInput) phoneInput.value = info.contact;
+  }
+
+  function saveClientContactDetails({ firstName, surname, email, contact }) {
+    const oldKey = CLIENT_PROFILE.email.trim().toLowerCase();
+    const newKey = String(email || '').trim().toLowerCase() || oldKey;
+    const fullName = [firstName, surname].filter(Boolean).join(' ').trim() || CLIENT_PROFILE.company;
+
+    try {
+      const approvals = JSON.parse(localStorage.getItem(CLIENT_APPROVALS_KEY) || '{}');
+      const prev = approvals[oldKey] || approvals[newKey] || {};
+      if (oldKey && oldKey !== newKey) delete approvals[oldKey];
+      approvals[newKey] = {
+        ...prev,
+        firstName,
+        surname,
+        name: fullName,
+        email: newKey,
+        contact,
+        role: 'client',
+        approved: prev.approved !== undefined ? prev.approved : true,
+        passwordSetupComplete: true,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(CLIENT_APPROVALS_KEY, JSON.stringify(approvals));
+    } catch {}
+
+    try {
+      const rawAccounts = localStorage.getItem(TEMP_ACCOUNTS_KEY);
+      const list = rawAccounts ? JSON.parse(rawAccounts) : [];
+      const arr = Array.isArray(list) ? list : [];
+      const idx = arr.findIndex(
+        (a) => a && a.role === 'client' && String(a.email || '').trim().toLowerCase() === oldKey
+      );
+      const updatedAcc = {
+        ...(idx >= 0 ? arr[idx] : {}),
+        firstName,
+        surname,
+        name: fullName,
+        email: newKey,
+        contact,
+        role: 'client',
+        approved: true,
+        passwordSetupComplete: true,
+        updatedAt: new Date().toISOString()
+      };
+      if (idx >= 0) {
+        arr[idx] = updatedAcc;
+      } else {
+        arr.unshift(updatedAcc);
+      }
+      localStorage.setItem(TEMP_ACCOUNTS_KEY, JSON.stringify(arr.slice(0, 40)));
+    } catch {}
+
+    try {
+      const sessRaw = sessionStorage.getItem(TEMP_SESSION_KEY);
+      if (sessRaw) {
+        const sess = JSON.parse(sessRaw);
+        sessionStorage.setItem(
+          TEMP_SESSION_KEY,
+          JSON.stringify({
+            ...sess,
+            firstName,
+            surname,
+            contact,
+            email: newKey
+          })
+        );
+      }
+    } catch {}
+  }
+
+  function applyPendingClientGate() {
+    const approved = isClientApproved();
+    const bannerEl = document.getElementById('clientAlertBanner');
+    const welcomeEl = document.getElementById('clientWelcomeBanner');
+    const form = document.getElementById('clientWorkRequestForm');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+
+    if (submitBtn && !submitBtn.dataset.defaultLabel) {
+      submitBtn.dataset.defaultLabel = submitBtn.textContent || 'Submit work request';
+    }
+
+    if (welcomeEl && approved) {
+      welcomeEl.style.display = 'block';
+      welcomeEl.innerHTML = `<p style="margin:0;font-size:12px;line-height:1.7"><strong>Welcome to TYPE Digital Solutions, ${escapeHtml(CLIENT_PROFILE.company)}.</strong> Your account is approved. You can submit new work requests below, update your contact details, and change your password anytime.</p>`;
+    }
+
+    if (!approved) {
+      if (bannerEl) {
+        bannerEl.style.display = 'block';
+        bannerEl.innerHTML = `<p style="margin:0;font-size:12px;line-height:1.7"><strong>Pending approval.</strong> Your client account for <strong>${escapeHtml(CLIENT_PROFILE.company)}</strong> is awaiting approval from TYPE Digital Solutions.</p>`;
+      }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Pending Approval';
+      }
+    } else if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = submitBtn.dataset.defaultLabel || 'Submit work request';
+    }
   }
 
   function isSameClient(record) {
@@ -296,13 +493,21 @@
     }
   }
 
+  function isSafeNotificationText(notif) {
+    const combined = `${notif?.title || ''} ${notif?.detail || ''}`;
+    return !combined.includes('Your login password is') && !combined.includes('TDSDirector2026!');
+  }
+
   function readClientFeed() {
     try {
       const raw = localStorage.getItem(CLIENT_FEED_KEY);
       if (!raw) return { notifications: [], completedContracts: [], acceptedWork: [] };
       const parsed = JSON.parse(raw);
+      const safeNotifications = Array.isArray(parsed.notifications)
+        ? parsed.notifications.filter((n) => isSameClient(n) && isSafeNotificationText(n))
+        : [];
       return {
-        notifications: Array.isArray(parsed.notifications) ? parsed.notifications.filter(isSameClient) : [],
+        notifications: safeNotifications,
         completedContracts: Array.isArray(parsed.completedContracts)
           ? parsed.completedContracts.filter(isSameClient)
           : [],
@@ -377,7 +582,7 @@
     return totalDue;
   }
 
-  function publishToAdminBridge(entry) {
+  async function publishToAdminBridge(entry) {
     const adminPayload = {
       id: entry.id,
       company: CLIENT_PROFILE.company,
@@ -418,6 +623,24 @@
         }
       }
     } catch {}
+
+    if (
+      window.emailjs &&
+      typeof window.emailjs.send === 'function' &&
+      EMAILJS_CFG.publicKey &&
+      EMAILJS_CFG.serviceId &&
+      EMAILJS_CFG.templateId
+    ) {
+      try {
+        window.emailjs.init({ publicKey: EMAILJS_CFG.publicKey });
+        await window.emailjs.send(EMAILJS_CFG.serviceId, EMAILJS_CFG.templateId, {
+          to_email: DIRECTOR_EMAIL,
+          cc_email: DIRECTOR_EMAIL,
+          subject: `New Work Request from ${CLIENT_PROFILE.company}: ${entry.subject}`,
+          message: `Client: ${CLIENT_PROFILE.company} (${CLIENT_PROFILE.email})\nScope: ${entry.project}\nSubject: ${entry.subject}\nBudget: ${formatZAR(entry.budget)}\nPriority: ${entry.priority}\nNotes: ${entry.notes}`
+        });
+      } catch {}
+    }
   }
 
   async function pushToSupabaseIfAvailable(entry) {
@@ -550,12 +773,18 @@
   }
 
   function renderAllClientViews() {
+    if (checkDismissedOrRemovedSession()) return;
+
     applyClientIdentityToDom();
     updateHeaderDate();
+    ensurePendingEntryInStorage();
+    populateContactDetailsForm();
+
     const contracts = getClientContracts();
     const feed = readClientFeed();
     const statuses = readRequestStatuses();
     const dueAmount = computeDueAmount(contracts);
+    const approved = isClientApproved();
 
     const activeCountEl = document.getElementById('clientActiveCount');
     const completedCountEl = document.getElementById('clientCompletedCount');
@@ -578,8 +807,11 @@
 
     if (bannerEl) {
       const latestNotif = feed.notifications[0];
-      if (dueAmount > 0 || latestNotif) {
+      if (!approved || dueAmount > 0 || latestNotif) {
         bannerEl.style.display = 'block';
+        const pendingAlert = !approved
+          ? `<strong>Pending approval.</strong> Your client account for <strong>${escapeHtml(CLIENT_PROFILE.company)}</strong> is awaiting approval from TYPE Digital Solutions.`
+          : '';
         const paymentAlert =
           dueAmount > 0
             ? `<strong>Payment Alert:</strong> You have <strong>${formatZAR(dueAmount)}</strong> due with TYPE Digital Solutions.`
@@ -587,7 +819,7 @@
         const latestLine = latestNotif
           ? `<strong>Latest Update (${escapeHtml(latestNotif.time)}):</strong> ${escapeHtml(latestNotif.title)} — ${escapeHtml(latestNotif.detail)}`
           : '';
-        bannerEl.innerHTML = `<p style="margin:0;font-size:12px;line-height:1.7">${[paymentAlert, latestLine].filter(Boolean).join('<br>')}</p>`;
+        bannerEl.innerHTML = `<p style="margin:0;font-size:12px;line-height:1.7">${[pendingAlert, paymentAlert, latestLine].filter(Boolean).join('<br>')}</p>`;
       } else {
         bannerEl.style.display = 'none';
       }
@@ -747,6 +979,7 @@
     }
 
     renderDocuments();
+    applyPendingClientGate();
 
     const pdfHandler = () => downloadInvoicePdf(contracts, dueAmount);
     const topPdfBtn = document.getElementById('clientDownloadPdfBtn');
@@ -756,6 +989,7 @@
   }
 
   function initClientDashboard() {
+    if (checkDismissedOrRemovedSession()) return;
     renderAllClientViews();
     setInterval(renderAllClientViews, 2000);
 
@@ -764,7 +998,10 @@
         event.key === REQUEST_STATUS_KEY ||
         event.key === ADMIN_STORAGE_KEY ||
         event.key === CLIENT_FEED_KEY ||
-        event.key === CLIENT_STORAGE_KEY
+        event.key === CLIENT_STORAGE_KEY ||
+        event.key === CLIENT_APPROVALS_KEY ||
+        event.key === DISMISSED_CLIENTS_KEY ||
+        event.key === TEMP_SESSION_KEY
       ) {
         clientState = loadClientState();
         renderAllClientViews();
@@ -788,10 +1025,57 @@
       });
     }
 
+    const contactForm = document.getElementById('clientContactDetailsForm');
+    if (contactForm) {
+      contactForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const firstName = document.getElementById('clientFirstNameInput')?.value.trim() || '';
+        const surname = document.getElementById('clientSurnameInput')?.value.trim() || '';
+        const email = document.getElementById('clientEmailEditInput')?.value.trim() || '';
+        const contact = document.getElementById('clientPhoneEditInput')?.value.trim() || '';
+        const feedbackEl = document.getElementById('clientContactFeedback');
+
+        if (!firstName || !surname || !email || !contact) {
+          if (feedbackEl) feedbackEl.textContent = 'Please fill in name, surname, email, and contact details.';
+          return;
+        }
+
+        saveClientContactDetails({ firstName, surname, email, contact });
+        if (feedbackEl) {
+          feedbackEl.textContent = 'Contact details saved and updated on your client profile.';
+        }
+        renderAllClientViews();
+      });
+    }
+
+    const pwForm = document.getElementById('clientChangePasswordForm');
+    if (pwForm) {
+      pwForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const nextPw = document.getElementById('newClientPasswordInput')?.value || '';
+        const feedbackEl = document.getElementById('clientPasswordFeedback');
+        if (nextPw.length < 6) {
+          if (feedbackEl) feedbackEl.textContent = 'Password must be at least 6 characters.';
+          return;
+        }
+        updateClientPassword(nextPw);
+        pwForm.reset();
+        if (feedbackEl) {
+          feedbackEl.textContent = 'Your login password has been updated.';
+        }
+      });
+    }
+
     const form = document.getElementById('clientWorkRequestForm');
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (checkDismissedOrRemovedSession()) return;
+        if (!isClientApproved()) {
+          applyPendingClientGate();
+          return;
+        }
+
         const subject = document.getElementById('reqSubjectInput')?.value.trim() || '';
         const project = document.getElementById('reqProjectSelect')?.value || 'New standalone project';
         const budget = sanitizeAmount(document.getElementById('reqBudgetInput')?.value);
@@ -811,7 +1095,7 @@
 
         clientState.requests.unshift(entry);
         saveClientState();
-        publishToAdminBridge(entry);
+        await publishToAdminBridge(entry);
         renderAllClientViews();
         await pushToSupabaseIfAvailable(entry);
         form.reset();

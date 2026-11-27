@@ -3,6 +3,17 @@ const EMAILJS_SERVICE_ID = 'YOUR_EMAILJS_SERVICE_ID';
 const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID';
 const DIRECTOR_EMAIL = 'director@typedigitalsolutions.co.za';
 const STORAGE_KEY = 'tds_portal_state_v1';
+const CLIENT_APPROVALS_KEY = 'tds_client_approvals_v1';
+const TEMP_ACCOUNTS_KEY = 'tds_temp_accounts_v1';
+
+const DEMO_CLIENT_EMAIL_SET = new Set([
+  'hello@northstar.example',
+  'hello@urbanfinds.example',
+  'hello@glowstudio.example',
+  'hello@neoarchitects.example',
+  'partner5@tdsclient.example',
+  'partner6@tdsclient.example'
+]);
 
 if (window.emailjs && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY') {
   window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
@@ -54,6 +65,64 @@ let state = loadState();
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function readClientApprovals() {
+  try {
+    return JSON.parse(localStorage.getItem(CLIENT_APPROVALS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeClientApprovals(approvals) {
+  try {
+    localStorage.setItem(CLIENT_APPROVALS_KEY, JSON.stringify(approvals));
+  } catch {}
+}
+
+function syncRegisteredClientsIntoApprovals() {
+  try {
+    const rawAccounts = localStorage.getItem(TEMP_ACCOUNTS_KEY);
+    const accounts = rawAccounts ? JSON.parse(rawAccounts) : [];
+    if (!Array.isArray(accounts)) return;
+
+    const approvals = readClientApprovals();
+    let changed = false;
+
+    for (const acc of accounts) {
+      if (!acc || acc.role !== 'client' || !acc.email) continue;
+      const key = String(acc.email).trim().toLowerCase();
+      if (DEMO_CLIENT_EMAIL_SET.has(key)) continue;
+      if (!approvals[key]) {
+        approvals[key] = {
+          approved: Boolean(acc.approved),
+          company: acc.name || key,
+          email: key,
+          requestedAt: acc.createdAt || new Date().toISOString()
+        };
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      writeClientApprovals(approvals);
+    }
+  } catch {}
+}
+
+function setClientApprovalStatus(email, companyName, approved) {
+  const key = String(email || '').trim().toLowerCase();
+  if (!key) return;
+  const approvals = readClientApprovals();
+  approvals[key] = {
+    ...(approvals[key] || {}),
+    approved: Boolean(approved),
+    company: companyName || approvals[key]?.company || key,
+    email: key,
+    updatedAt: new Date().toISOString()
+  };
+  writeClientApprovals(approvals);
 }
 
 function formatZAR(value) {
@@ -125,6 +194,41 @@ function calculateIncome() {
   );
 }
 
+function renderPendingClients() {
+  const container = document.getElementById('pendingClientsFeed');
+  if (!container) return;
+
+  syncRegisteredClientsIntoApprovals();
+  const approvals = readClientApprovals();
+  const entries = Object.values(approvals).filter(
+    (entry) => entry && entry.email && !DEMO_CLIENT_EMAIL_SET.has(String(entry.email).toLowerCase())
+  );
+
+  if (!entries.length) {
+    container.innerHTML = '<p class="feed-meta">No new non-demo client accounts waiting for approval.</p>';
+    return;
+  }
+
+  container.innerHTML = entries
+    .map((entry) => {
+      const statusLabel = entry.approved ? 'Approved' : 'Pending Approval';
+      return `
+      <div class="feed-item">
+        <strong>${entry.company || entry.email}</strong>
+        <span>${entry.email} — ${statusLabel}</span>
+        <div class="card-actions">
+          ${
+            entry.approved
+              ? `<button type="button" class="btn-secondary" data-revoke-client="${entry.email}">Set Pending</button>`
+              : `<button type="button" class="btn-primary" data-approve-client="${entry.email}" data-client-company="${entry.company || entry.email}">Approve Client</button>`
+          }
+        </div>
+      </div>
+    `;
+    })
+    .join('');
+}
+
 function renderRequests() {
   const container = document.getElementById('requestsFeed');
   if (state.requests.length === 0) {
@@ -140,7 +244,7 @@ function renderRequests() {
         <span>${req.project} — ${formatZAR(req.budget)}</span>
         <span class="feed-meta">${req.email} · ${req.receivedAt}</span>
         <div class="card-actions">
-          <button type="button" class="btn-primary" data-accept-req="${req.id}">Convert to Client</button>
+          <button type="button" class="btn-primary" data-accept-req="${req.id}">Approve & Convert</button>
           <button type="button" class="btn-secondary" data-dismiss-req="${req.id}">Dismiss</button>
         </div>
       </div>
@@ -336,6 +440,7 @@ async function runMilestoneAlerts() {
 
 function refreshAll() {
   calculateIncome();
+  renderPendingClients();
   renderRequests();
   renderClients();
   renderNotifications();
@@ -351,6 +456,7 @@ document.getElementById('addClientForm').addEventListener('submit', (e) => {
 
   if (!company || !email || !project) return;
 
+  setClientApprovalStatus(email, company, true);
   state.clients.push({
     id: `cli_${Date.now().toString().slice(-4)}`,
     company,
@@ -419,6 +525,24 @@ document.getElementById('simulateRequestBtn').addEventListener('click', async ()
 
 document.getElementById('checkAlertsBtn').addEventListener('click', runMilestoneAlerts);
 
+document.getElementById('pendingClientsFeed')?.addEventListener('click', (e) => {
+  const approveEmail = e.target.dataset.approveClient;
+  const revokeEmail = e.target.dataset.revokeClient;
+
+  if (approveEmail) {
+    const companyName = e.target.dataset.clientCompany || approveEmail;
+    setClientApprovalStatus(approveEmail, companyName, true);
+    pushNotification(`Approved client access for ${companyName} (${approveEmail}).`, false);
+    refreshAll();
+  }
+
+  if (revokeEmail) {
+    setClientApprovalStatus(revokeEmail, revokeEmail, false);
+    pushNotification(`Set client access back to pending for ${revokeEmail}.`, false);
+    refreshAll();
+  }
+});
+
 document.getElementById('requestsFeed').addEventListener('click', (e) => {
   const acceptId = e.target.dataset.acceptReq;
   const dismissId = e.target.dataset.dismissReq;
@@ -426,6 +550,7 @@ document.getElementById('requestsFeed').addEventListener('click', (e) => {
   if (acceptId) {
     const req = state.requests.find((r) => r.id === acceptId);
     if (req) {
+      setClientApprovalStatus(req.email, req.company, true);
       state.clients.push({
         id: `cli_${Date.now().toString().slice(-4)}`,
         company: req.company,
@@ -436,7 +561,7 @@ document.getElementById('requestsFeed').addEventListener('click', (e) => {
         milestones: []
       });
       state.requests = state.requests.filter((r) => r.id !== acceptId);
-      pushNotification(`Converted request from ${req.company} into an active client.`, false);
+      pushNotification(`Approved and converted request from ${req.company} into an active client.`, false);
       saveState();
       refreshAll();
     }
@@ -496,6 +621,13 @@ document.getElementById('downloadInvoiceBtn').addEventListener('click', () => {
 
 document.getElementById('printInvoiceBtn').addEventListener('click', () => {
   window.print();
+});
+
+window.addEventListener('storage', (event) => {
+  if (event.key === CLIENT_APPROVALS_KEY || event.key === TEMP_ACCOUNTS_KEY || event.key === STORAGE_KEY) {
+    state = loadState();
+    refreshAll();
+  }
 });
 
 refreshAll();

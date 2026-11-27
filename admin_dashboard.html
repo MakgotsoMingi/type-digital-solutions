@@ -17,8 +17,10 @@
             <button type="button" class="mobile-menu" id="adminMobileMenuBtn" aria-label="Menu">☰</button>
             <div class="side-label">WORKSPACE</div>
             <nav class="side-nav" id="adminSideNav">
-                <a class="active" href="admin-dashboard.html"><span class="nav-icon">⌂</span>Overview</a>
+                <a class="active" href="admin_dashboard.html"><span class="nav-icon">⌂</span>Overview</a>
                 <a href="#clients"><span class="nav-icon">♙</span>Clients</a>
+                <a href="#project-payments"><span class="nav-icon">R</span>Payment projects</a>
+                <a href="#client-contacts"><span class="nav-icon">☎</span>Client contacts</a>
                 <a href="#projects"><span class="nav-icon">▣</span>Projects</a>
                 <a href="#requests"><span class="nav-icon">✉</span>Work requests</a>
                 <a href="#updates"><span class="nav-icon">◷</span>Progress updates</a>
@@ -45,13 +47,14 @@
             <section class="content">
                 <div class="page-heading">
                     <div>
-                        <span class="eyebrow" data-today>TUESDAY, 24 NOVEMBER 2026</span>
-                        <h1><span data-greeting>Good evening</span>, <span data-first-name>Makgotso</span></h1>
+                        <span class="eyebrow" data-today>FRIDAY, 27 NOVEMBER 2026</span>
+                        <h1><span data-greeting>Good afternoon</span>, <span data-first-name>Makgotso</span></h1>
                         <p>Here's what's happening across TYPE Digital Solutions.</p>
                     </div>
                     <div class="quick-actions">
                         <a class="btn btn-primary" href="#clients">＋ Add a client</a>
-                        <button type="button" class="btn" id="checkAlertsBtn">Check milestone alerts</button>
+                        <a class="btn" href="#project-payments">Paid / Deposit / Unpaid</a>
+                        <button type="button" class="btn" id="runMilestoneAlertsBtn">Check milestone alerts</button>
                     </div>
                 </div>
 
@@ -74,7 +77,7 @@
                     <article class="stat-card">
                         <div class="stat-top">Work requests <span class="stat-icon">✉</span></div>
                         <div class="stat-value" id="statNewRequests">00</div>
-                        <div class="stat-note">Live incoming company enquiries</div>
+                        <div class="stat-note">Live client requests & enquiries</div>
                     </article>
                 </div>
 
@@ -106,6 +109,7 @@
                                     <option value="Deposit Paid">Deposit Paid</option>
                                     <option value="Paid">Paid</option>
                                 </select>
+                                <input type="date" id="clientDueDateInput" aria-label="Kickoff milestone due date">
                                 <button type="submit" class="btn btn-primary">＋ Add client</button>
                             </form>
 
@@ -124,16 +128,120 @@
                             </div>
                         </section>
 
-                        <section class="panel" id="monthly-balance">
+                        <section class="panel" id="project-payments">
                             <div class="panel-heading">
-                                <h2>Monthly business balance</h2>
-                                <span class="pill" id="monthlyBalancePeriod">2026-11</span>
+                                <h2>Paid, unpaid &amp; deposit paid projects</h2>
+                                <span class="pill" id="paymentProjectsCountBadge">00</span>
                             </div>
+
                             <div class="stats-grid" style="margin-bottom:14px">
                                 <article class="stat-card">
-                                    <div class="stat-top">Payments collected <span class="stat-icon">R</span></div>
+                                    <div class="stat-top">Paid projects <span class="stat-icon">R</span></div>
+                                    <div class="stat-value" id="paidProjectsTotal">R 0.00</div>
+                                    <div class="stat-note" id="paidProjectsCountNote">0 projects</div>
+                                </article>
+                                <article class="stat-card">
+                                    <div class="stat-top">Deposit paid projects <span class="stat-icon">R</span></div>
+                                    <div class="stat-value" id="depositPaidProjectsTotal">R 0.00</div>
+                                    <div class="stat-note" id="depositPaidProjectsCountNote">0 projects</div>
+                                </article>
+                                <article class="stat-card">
+                                    <div class="stat-top">Unpaid projects <span class="stat-icon">R</span></div>
+                                    <div class="stat-value" id="unpaidProjectsTotal">R 0.00</div>
+                                    <div class="stat-note" id="unpaidProjectsCountNote">0 projects</div>
+                                </article>
+                            </div>
+
+                            <form id="updateProjectPaymentForm" class="milestone-form" style="margin-bottom:14px">
+                                <select id="paymentProjectClientSelect" aria-label="Select client project to update payment status" required>
+                                    <option value="">Select client project...</option>
+                                </select>
+                                <select id="paymentProjectStatusSelect" aria-label="Select payment status">
+                                    <option value="Paid">Paid</option>
+                                    <option value="Deposit Paid">Deposit Paid</option>
+                                    <option value="Unpaid">Unpaid</option>
+                                </select>
+                                <button type="submit" class="btn btn-primary" id="saveProjectPaymentBtn">Update status</button>
+                            </form>
+
+                            <div class="quick-actions" id="paymentStatusFilterBar" style="margin-bottom:12px">
+                                <button type="button" class="btn btn-primary" data-payment-filter="All">All</button>
+                                <button type="button" class="btn" data-payment-filter="Paid">Paid</button>
+                                <button type="button" class="btn" data-payment-filter="Deposit Paid">Deposit Paid</button>
+                                <button type="button" class="btn" data-payment-filter="Unpaid">Unpaid</button>
+                            </div>
+
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Client &amp; project</th>
+                                            <th>Contract fee</th>
+                                            <th>Payment status</th>
+                                            <th>Change status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="paymentProjectsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="panel" id="client-contacts">
+                            <div class="panel-heading">
+                                <h2>Client contact list</h2>
+                                <span class="pill" id="clientContactsCountBadge">00</span>
+                            </div>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Name &amp; surname</th>
+                                            <th>Email</th>
+                                            <th>Contact details</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clientContactsTableBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="panel-heading" id="dismissed-clients" style="margin-top:20px">
+                                <h3>Dismissed clients</h3>
+                                <span class="pill" id="dismissedClientsCountBadge">00</span>
+                            </div>
+                            <p class="stat-note" style="margin-bottom:10px">
+                                Accept a dismissed client to restore and approve them, or Remove to forget their dismissed status so they can create a new account again with the same details and be approved or dismissed again.
+                            </p>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Name &amp; company</th>
+                                            <th>Email</th>
+                                            <th>Dismissed</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dismissedClientsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="panel" id="monthly-balance">
+                            <div class="panel-heading">
+                                <h2>Monthly business balance, calendar &amp; graphs</h2>
+                                <div class="quick-actions">
+                                    <button type="button" class="btn" id="prevFinanceMonthBtn" aria-label="Previous month">◀</button>
+                                    <span class="pill" id="monthlyBalancePeriod">2026-11</span>
+                                    <button type="button" class="btn" id="nextFinanceMonthBtn" aria-label="Next month">▶</button>
+                                </div>
+                            </div>
+
+                            <div class="stats-grid" style="margin-bottom:14px">
+                                <article class="stat-card">
+                                    <div class="stat-top">Monthly income <span class="stat-icon">R</span></div>
                                     <div class="stat-value" id="monthlyCollectedValue">R 0.00</div>
-                                    <div class="stat-note">Paid + deposits received</div>
+                                    <div class="stat-note">Paid + deposits + logged entries</div>
                                 </article>
                                 <article class="stat-card">
                                     <div class="stat-top">Expense set-aside <span class="stat-icon">R</span></div>
@@ -141,26 +249,92 @@
                                     <div class="stat-note" id="monthlySetAsideNote">Reserved for business costs</div>
                                 </article>
                                 <article class="stat-card">
-                                    <div class="stat-top">Spent expenses <span class="stat-icon">R</span></div>
+                                    <div class="stat-top">Monthly expenses <span class="stat-icon">R</span></div>
                                     <div class="stat-value" id="monthlySpentValue">R 0.00</div>
-                                    <div class="stat-note">Actual costs paid out</div>
+                                    <div class="stat-note">Spent + platform &amp; day expenses</div>
                                 </article>
                                 <article class="stat-card">
                                     <div class="stat-top">Available balance <span class="stat-icon">R</span></div>
                                     <div class="stat-value" id="netMonthlyBalanceValue">R 0.00</div>
-                                    <div class="stat-note" id="monthlyBalanceStatus">Collected minus set-aside & spent</div>
+                                    <div class="stat-note" id="monthlyBalanceStatus">Monthly income minus expenses</div>
                                 </article>
                             </div>
+
                             <form id="expenseSetAsideForm" class="milestone-form">
                                 <input type="number" id="setAsideAmountInput" placeholder="Amount (ZAR)" min="0.01" step="50" required>
-                                <select id="expenseActionTypeSelect" aria-label="Reserve or spent action">
+                                <select id="expenseActionTypeSelect" aria-label="Reserve, expense, or income action">
                                     <option value="reserve">Set aside for expenses</option>
                                     <option value="spent">Record spent expense</option>
+                                    <option value="income">Record monthly income</option>
                                 </select>
                                 <input type="text" id="setAsideLabelInput" placeholder="Note (e.g. Hosting, domains, tooling)">
                                 <button type="submit" class="btn btn-primary" id="saveSetAsideBtn">Apply</button>
                                 <button type="button" class="btn" id="clearSetAsideBtn">Reset month</button>
                             </form>
+
+                            <div class="quick-actions" style="margin-top:10px;margin-bottom:16px">
+                                <a class="btn btn-primary" href="Finance.html" id="openFinancePageBtn">Finance</a>
+                            </div>
+
+                            <div class="panel" style="margin-bottom:16px">
+                                <div class="panel-heading">
+                                    <h3>Monthly income &amp; expenses graph</h3>
+                                    <span class="pill" id="monthlyGraphNetPill">Net: R 0.00</span>
+                                </div>
+                                <div id="monthlyFinanceGraph" class="finance-graph-wrap"></div>
+                            </div>
+
+                            <div class="panel" style="margin-bottom:16px" id="monthly-calendar-box">
+                                <div class="panel-heading">
+                                    <h3>Monthly cashflow calendar</h3>
+                                    <span class="pill" id="selectedCalendarDateLabel">2026-11-27</span>
+                                </div>
+                                <div id="monthlyFinanceCalendarGrid" class="finance-calendar-grid"></div>
+
+                                <form id="calendarDayEntryForm" class="milestone-form" style="margin-top:12px">
+                                    <input type="date" id="calendarEntryDateInput" aria-label="Cashflow entry date" required>
+                                    <select id="calendarEntryTypeSelect" aria-label="Entry type">
+                                        <option value="income">Income</option>
+                                        <option value="expense">Expense</option>
+                                    </select>
+                                    <input type="number" id="calendarEntryAmountInput" placeholder="Amount (ZAR)" min="0.01" step="10" required>
+                                    <input type="text" id="calendarEntryTitleInput" placeholder="Description (e.g. Retainer, Cloud hosting)" required>
+                                    <button type="submit" class="btn btn-primary" id="saveCalendarEntryBtn">＋ Add day entry</button>
+                                </form>
+
+                                <div class="activity-list" id="calendarDayEntriesList" style="margin-top:10px"></div>
+                            </div>
+
+                            <div class="panel" id="platform-expense-monitor">
+                                <div class="panel-heading">
+                                    <h3>Platform expense monitor</h3>
+                                    <span class="pill" id="platformExpenseTotalBadge">R 0.00</span>
+                                </div>
+                                <form id="platformExpenseForm" class="milestone-form" style="margin-bottom:12px">
+                                    <input type="text" id="platformNameInput" placeholder="Platform / tool (e.g. EmailJS, Supabase, Vercel, Domain)" required>
+                                    <input type="number" id="platformAmountInput" placeholder="Cost (ZAR)" min="0.01" step="10" required>
+                                    <select id="platformBillingCycleSelect" aria-label="Billing cycle">
+                                        <option value="Monthly">Monthly</option>
+                                        <option value="One-off">One-off</option>
+                                        <option value="Annual">Annual</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-primary" id="addPlatformExpenseBtn">＋ Add platform cost</button>
+                                </form>
+                                <div class="table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Platform / service</th>
+                                                <th>Cycle</th>
+                                                <th>Amount</th>
+                                                <th>Manage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="platformExpensesTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             <div class="activity-list" id="expenseReserveLog" style="margin-top:12px"></div>
                         </section>
 
@@ -169,7 +343,7 @@
                                 <h2>Project milestones & deadlines</h2>
                                 <a href="#updates">Alert log →</a>
                             </div>
-                            <form id="milestoneForm" class="milestone-form">
+                            <form id="addMilestoneForm" class="milestone-form">
                                 <select id="milestoneClientSelect" aria-label="Select client for milestone" required>
                                     <option value="">Select client...</option>
                                 </select>
@@ -196,8 +370,8 @@
                     <div>
                         <section class="panel" id="requests">
                             <div class="panel-heading">
-                                <h2>Live company requests</h2>
-                                <button type="button" class="btn" id="simulateRequestBtn">＋ Test request</button>
+                                <h2>New client requests &amp; enquiries</h2>
+                                <button type="button" class="btn" id="deleteUnapprovedClientsBtn">Delete unapproved</button>
                             </div>
                             <div class="activity-list" id="requestsList"></div>
                         </section>
