@@ -42,6 +42,7 @@ body {
 
 img {
   max-width: 100%;
+  height: auto;
   display: block;
 }
 
@@ -680,25 +681,34 @@ section[id] {
 
 @media (max-width: 768px) {
   .navbar {
-    grid-template-columns: auto auto;
-    padding: 16px 20px;
+    grid-template-columns: 1fr auto;
+    padding: 14px 20px;
+    gap: 12px;
   }
 
   .menu-toggle {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     justify-self: end;
   }
 
   .nav-link {
     display: none;
     grid-column: 1 / -1;
+    justify-content: flex-start;
     justify-items: start;
-    gap: 14px;
+    gap: 12px;
     padding-top: 12px;
   }
 
   .nav-link.open {
     display: grid;
+  }
+
+  .nav-link a {
+    font-size: 12px;
+    padding: 4px 0;
   }
 
   .login-btn {
@@ -708,21 +718,53 @@ section[id] {
   .nav-link.open + .login-btn {
     display: inline-flex;
     justify-self: start;
-    margin-top: 8px;
+    margin-top: 4px;
   }
 
   .hero {
     min-height: auto;
-    padding: 72px 20px 56px;
-    gap: 36px;
+    padding: 56px 20px 48px;
+    gap: 32px;
   }
 
   section {
-    padding: 68px 20px;
+    padding: 60px 20px;
+  }
+
+  .fan-row {
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 14px;
+  }
+
+  .prj-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .support-form input,
+  .support-form select,
+  .support-form textarea {
+    font-size: 16px;
+  }
+
+  .team-profile {
+    padding: 24px 20px;
   }
 
   .team-image-link {
-    width: 180px;
-    height: 180px;
+    width: 170px;
+    height: 170px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-btns {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-btns .btn-primary,
+  .hero-btns .btn-outline {
+    width: 100%;
   }
 }
